@@ -8,6 +8,7 @@ import (
 //DocumentManager mager needed to manipulate documents
 type DocumentManager struct {}
 
+//GetDocumentListJSON returns documents list from database in Json format
 func (manager *DocumentManager) GetDocumentListJSON () (string, error) {
 	//TODO Create new type for Json encoding
 
@@ -23,6 +24,7 @@ func (manager *DocumentManager) GetDocumentListJSON () (string, error) {
 	return string(jsonData), nil
 }
 
+//GetDocumentList returns list of documents from database
 func (manager *DocumentManager) GetDocumentList () ([]Document, error) {
 	open()
 	defer close()
@@ -69,5 +71,45 @@ func (manager *DocumentManager) GetDocumentList () ([]Document, error) {
 	return docs, nil
 }
 
+//Load gets document from database with id
+func (manager *DocumentManager) Load(id int) (Document, error) {
+	open()
+	defer close()
+	
+	stmtDoc := `
+	SELECT id, name, path, time 
+	FROM documents
+	WHERE id = $1
+	`
+ 
+	stmtFields := `
+	SELECT text 
+	FROM fields 
+	WHERE document_id = $1
+	`
 
+	var doc Document
+
+	err := Db.QueryRow(stmtDoc, id).Scan(&doc.ID, &doc.Name, &doc.Path, &doc.Time)
+	if err != nil {
+		log.Printf("Error in loading document: %s", err)
+		return doc, err
+	}
+
+	fieldsRows, err := Db.Query(stmtFields, id)
+	if err != nil {
+		log.Printf("Error in loading document: %s", err)
+		return doc, err
+	}
+
+	for fieldsRows.Next() {
+		var field string
+		fieldsRows.Scan(&field)
+
+		doc.Variables = append(doc.Variables, field)
+	}
+	
+
+	return doc, nil
+}
 

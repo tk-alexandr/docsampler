@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strconv"
 	"docsampler/docprocessing"
 	"path/filepath"
 	"fmt"
@@ -23,7 +24,8 @@ func main() {
 	http.HandleFunc("/generate", generateHandler)
 
 	//TODO delete if examples don't needed
-	http.Handle("/example/", http.StripPrefix("/example/",http.FileServer(http.Dir("./example"))))
+	staticFilesHandler := http.FileServer(http.Dir("./example"))
+	http.Handle("/example/", http.StripPrefix("/example/", staticFilesHandler))
 
 	http.ListenAndServe(":2222", nil)
 }
@@ -70,8 +72,9 @@ func createSampleHandler(writer http.ResponseWriter, request *http.Request) {
 		Variables: docVars,
 	}
 	doc.Save()
+
 	//return message
-	http.Redirect(writer, request, "/doclist", http.StatusSeeOther)
+	//http.Redirect(writer, request, "/doclist", http.StatusSeeOther)
 }
 
 func docListHandler(writer http.ResponseWriter, request *http.Request) {
@@ -87,5 +90,51 @@ func docListHandler(writer http.ResponseWriter, request *http.Request) {
 }
 
 func generateHandler(writer http.ResponseWriter, request *http.Request) {
-	fmt.Fprint(writer, "Hello generate handler")
+	data := make(map[string]string) 
+
+	id, err := strconv.Atoi(request.FormValue("id"))
+	if err != nil {
+		log.Printf("Cannot convert id to int: %s", err)
+		return
+	}
+	
+	doc, err := documentManager.Load(id)
+	if err != nil {
+		return
+	}
+
+	for _, val := range doc.Variables {
+		data[val] = request.FormValue(val)
+	}
+
+	resFilePath, err := docprocessing.SetDocumentVariables(doc.Path, data)
+	if err != nil {
+		return
+	}
+
+	Openfile, err := os.Open(resFilePath)
+	
+	if err != nil {
+		http.Error(writer, "File not found.", 404)
+		return
+	}
+	defer Openfile.Close()
+
+	
+	FileHeader := make([]byte, 512)
+	
+	Openfile.Read(FileHeader)
+	
+	FileContentType := http.DetectContentType(FileHeader)
+
+	FileStat, _ := Openfile.Stat()                     
+	FileSize := strconv.FormatInt(FileStat.Size(), 10) 
+
+	writer.Header().Set("Content-Disposition", "attachment; filename="+resFilePath)
+	writer.Header().Set("Content-Type", FileContentType)
+	writer.Header().Set("Content-Length", FileSize)
+
+	Openfile.Seek(0, 0)
+	
+	io.Copy(writer, Openfile)
 }

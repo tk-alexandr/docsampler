@@ -20,12 +20,12 @@ func (doc *Document) Save () {
 	defer close()
 
 	sqlStatement := `
-	INSERT INTO documents (name, time)
-	VALUES ($1, $2)
+	INSERT INTO documents (name, path, time)
+	VALUES ($1, $2, $3)
 	RETURNING id`
 
 	id := 0
-	err := Db.QueryRow(sqlStatement, doc.Name, doc.Time).Scan(&id)
+	err := Db.QueryRow(sqlStatement, doc.Name, doc.Path, doc.Time).Scan(&id)
 
 	if err != nil {
 		log.Fatal(err)
