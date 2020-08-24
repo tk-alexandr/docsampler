@@ -1,12 +1,10 @@
 package docprocessing
 
 import (
-	//"os"
-	"log"
+	"log"	
 	"github.com/unidoc/unioffice/document"
-	//"strings"
-	//"bytes"
 )
+
 //GetDocumentVariables receives path to a saved file and looking for variables in it
 func GetDocumentVariables (path string) ([]string, error) {
 	doc, err := document.Open(path)
